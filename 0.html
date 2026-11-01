@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chat AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F2F4F8;
+    --panel: #FFFFFF;
+    --ink: #15203A;
+    --ink-soft: #4A5572;
+    --muted: #8A93A8;
+    --line: #DDE2EC;
+    --brand: #15203A;
+    --amber: #E8A33D;
+    --amber-ink: #2A1A00;
+    --code-bg: #0F1830;
+    --code-ink: #E6ECFA;
+    --danger: #B3402E;
+    --radius: 14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0B1120;
+      --panel: #131C30;
+      --ink: #E6EBF5;
+      --ink-soft: #AAB4CC;
+      --muted: #6F7A94;
+      --line: #22304D;
+      --brand: #E6EBF5;
+      --amber: #F0B45A;
+      --amber-ink: #2A1A00;
+      --code-bg: #060A14;
+      --code-ink: #DCE4F5;
+      --danger: #F08A76;
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  .app {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px);
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    padding: 18px 4px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.6rem;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  h1 span { color: var(--amber); }
+  .status {
+    font-size: 0.8rem;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: #3DBE7E; }
+
+  .settings {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    gap: 10px;
+  }
+  label.small {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .field {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 9px 11px;
+  }
+  .field:focus { border-color: var(--amber); outline: none; }
+  details.sys { margin-top: 10px; }
+  details.sys summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    list-style: none;
+  }
+  details.sys summary::before { content: "+ "; color: var(--amber); font-weight: 600; }
+  details.sys[open] summary::before { content: "– "; }
+  details.sys textarea { margin-top: 8px; min-height: 64px; resize: vertical; }
+
+  /* ---------- Chat ---------- */
+  #chat {
+    overflow-y: auto;
+    padding: 20px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    scroll-behavior: smooth;
+  }
+  .intro {
+    margin: auto;
+    text-align: left;
+    max-width: 520px;
+    padding: 8px 4px;
+  }
+  .intro h2 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 500;
+    font-size: 1.9rem;
+    line-height: 1.2;
+    margin: 0 0 8px;
+  }
+  .intro p { color: var(--ink-soft); margin: 0 0 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 14px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    transition: border-color .15s, color .15s;
+  }
+  .chip:hover { border-color: var(--amber); color: var(--ink); }
+
+  .turn { display: flex; flex-direction: column; max-width: 100%; }
+  .turn.user { align-items: flex-end; }
+  .turn.assistant { align-items: flex-start; }
+
+  .bubble {
+    max-width: min(640px, 92%);
+    padding: 11px 15px;
+    border-radius: var(--radius);
+    overflow-wrap: anywhere;
+  }
+  .user .bubble {
+    background: var(--brand);
+    color: var(--bg);
+    border-bottom-right-radius: 4px;
+    white-space: pre-wrap;
+  }
+  .assistant .bubble {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-bottom-left-radius: 4px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .bubble p { margin: 0 0 10px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.86em;
+    background: color-mix(in srgb, var(--muted) 18%, transparent);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+  .bubble pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 12px 14px;
+    border-radius: 10px;
+    overflow-x: auto;
+    margin: 10px 0;
+  }
+  .bubble pre code { background: none; padding: 0; font-size: 0.85rem; }
+  .bubble strong { font-weight: 600; }
+
+  .meta {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .turn:hover .meta, .turn:focus-within .meta { opacity: 1; }
+  @media (hover: none) { .meta { opacity: 1; } }
+  .mini {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.78rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .mini:hover { color: var(--ink); background: var(--panel); }
+
+  .turn.error .bubble {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    font-size: 0.9rem;
+    width: 100%;
+    max-width: 100%;
+  }
+  .cursor::after {
+    content: "▍";
+    color: var(--amber);
+    margin-left: 2px;
+    animation: blink 1s steps(2) infinite;
+  }
+  @keyframes blink { to { visibility: hidden; } }
+  @media (prefers-reduced-motion: reduce) {
+    .cursor::after { animation: none; }
+    #chat { scroll-behavior: auto; }
+  }
+
+  /* ---------- Composer ---------- */
+  footer { padding: 10px 0 16px; }
+  .composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 8px 8px 8px 14px;
+    transition: border-color .15s;
+  }
+  .composer:focus-within { border-color: var(--amber); }
+  #input {
+    flex: 1;
+    resize: none;
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 8px 0;
+    max-height: 180px;
+    min-height: 24px;
+    line-height: 1.5;
+  }
+  .btn-send {
+    flex: none;
+    width: 40px; height: 40px;
+    border: none;
+    border-radius: 11px;
+    background: var(--amber);
+    color: var(--amber-ink);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .btn-send:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-stop {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .foot-hint {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    .settings-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 1.35rem; }
+    .intro h2 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title-row">
+      <h1>Chat<span>.</span>AI</h1>
+      <div class="status"><span class="dot" id="dot"></span><span id="statusText">Belum ada key</span></div>
+    </div>
+
+    <section class="settings" aria-label="Pengaturan">
+      <div class="settings-grid">
+        <div>
+          <label class="small" for="apiKey">API key Anthropic</label>
+          <input id="apiKey" class="field" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+        </div>
+        <div>
+          <label class="small" for="model">Model</label>
+          <select id="model" class="field">
+            <option value="claude-haiku-5-5">Haiku 5.5 · cepat</option>
+            <option value="claude-sonnet-5-5">Sonnet 5.5 · seimbang</option>
+            <option value="claude-opus-5-5">Opus 5.5 · paling pintar</option>
+          </select>
+        </div>
+      </div>
+      <details class="sys">
+        <summary>Instruksi sistem (opsional)</summary>
+        <textarea id="system" class="field" placeholder="Contoh: Jawab singkat dalam Bahasa Indonesia."></textarea>
+      </details>
+    </section>
+  </header>
+
+  <main id="chat" aria-live="polite"></main>
+
+  <footer>
+    <form id="form" class="composer">
+      <textarea id="input" rows="1" placeholder="Tulis pesan…" aria-label="Pesan"></textarea>
+      <button id="sendBtn" class="btn-send" type="submit" aria-label="Kirim">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </button>
+    </form>
+    <p class="foot-hint">Enter untuk kirim · Shift+Enter untuk baris baru · Key hanya tersimpan di memori halaman ini</p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const chatEl = document.getElementById('chat');
+  const form = document.getElementById('form');
+  const inputEl = document.getElementById('input');
+  const keyEl = document.getElementById('apiKey');
+  const modelEl = document.getElementById('model');
+  const systemEl = document.getElementById('system');
+  const sendBtn = document.getElementById('sendBtn');
+  const dot = document.getElementById('dot');
+  const statusText = document.getElementById('statusText');
+
+  const SEND_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+  const STOP_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
+
+  let history = [];      // riwayat hanya di memori
+  let controller = null; // AbortController untuk tombol berhenti
+  let busy = false;
+
+  // ---------- Util ----------
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  // Render markdown sederhana dan aman (teks di-escape dulu)
+  function render(md) {
+    const parts = md.split('```');
+    return parts.map((part, i) => {
+      if (i % 2 === 1) {
+        const nl = part.indexOf('\n');
+        const code = nl > -1 ? part.slice(nl + 1) : part;
+        return '<pre><code>' + esc(code.replace(/\n$/, '')) + '</code></pre>';
+      }
+      const paras = esc(part).split(/\n{2,}/).map(p =>
+        '<p>' + p
+          .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+          .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n/g, '<br>') + '</p>'
+      );
+      return paras.join('');
+    }).join('');
+  }
+
+  function setStatus() {
+    const ok = keyEl.value.trim().length > 10;
+    dot.classList.toggle('on', ok);
+    statusText.textContent = ok ? 'Siap' : 'Belum ada key';
+  }
+
+  function scrollDown() {
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function setBusy(on) {
+    busy = on;
+    sendBtn.innerHTML = on ? STOP_ICON : SEND_ICON;
+    sendBtn.classList.toggle('btn-stop', on);
+    sendBtn.setAttribute('aria-label', on ? 'Berhenti' : 'Kirim');
+    sendBtn.disabled = false;
+    inputEl.disabled = on;
+  }
+
+  function clearIntro() {
+    const intro = chatEl.querySelector('.intro');
+    if (intro) intro.remove();
+  }
+
+  function showIntro() {
+    chatEl.innerHTML = `
+      <div class="intro">
+        <h2>Apa yang ingin kamu kerjakan hari ini?</h2>
+        <p>Tanya apa saja, minta ringkasan, bantu menulis, atau debug kode.</p>
+        <div class="chips">
+          <button class="chip" type="button" data-q="Jelaskan konsep API secara sederhana.">Jelaskan konsep API</button>
+          <button class="chip" type="button" data-q="Buatkan rencana belajar Python 4 minggu.">Rencana belajar Python</button>
+          <button class="chip" type="button" data-q="Tulis email singkat untuk meminta perpanjangan deadline.">Tulis email singkat</button>
+        </div>
+      </div>`;
+  }
+
+  function addTurn(role, text = '') {
+    clearIntro();
+    const turn = document.createElement('div');
+    turn.className = 'turn ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (role === 'user') bubble.textContent = text;
+    else bubble.innerHTML = render(text);
+    turn.appendChild(bubble);
+    chatEl.appendChild(turn);
+    scrollDown();
+    return { turn, bubble };
+  }
+
+  function addCopyButton(turn, getText) {
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const btn = document.createElement('button');
+    btn.className = 'mini';
+    btn.type = 'button';
+    btn.textContent = 'Salin';
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(getText());
+        btn.textContent = 'Tersalin ✓';
+        setTimeout(() => (btn.textContent = 'Salin'), 1500);
+      } catch {
+        btn.textContent = 'Gagal';
+      }
+    });
+    meta.appendChild(btn);
+    turn.appendChild(meta);
+  }
+
+  // ---------- Kirim pesan (streaming) ----------
+  async function send(text) {
+    const apiKey = keyEl.value.trim();
+    if (!apiKey) {
+      const { turn, bubble } = addTurn('error');
+      bubble.textContent = 'API key belum diisi. Masukkan key di bagian pengaturan.';
+      keyEl.focus();
+      return;
+    }
+
+    addTurn('user', text);
+    history.push({ role: 'user', content: text });
+
+    const { turn, bubble } = addTurn('assistant');
+    bubble.classList.add('cursor');
+    let reply = '';
+    let pending = false;
+
+    const paint = () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        bubble.innerHTML = render(reply);
+        pending = false;
+        scrollDown();
+      });
+    };
+
+    controller = new AbortController();
+    setBusy(true);
+
+    const body = {
+      model: modelEl.value,
+      max_tokens: 2048,
+      stream: true,
+      messages: history
+    };
+    const system = systemEl.value.trim();
+    if (system) body.system = system;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        let msg = 'Permintaan gagal (status ' + res.status + ')';
+        try {
+          const data = await res.json();
+          if (data?.error?.message) msg = data.error.message;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let idx;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx + 1);
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+
+          let evt;
+          try { evt = JSON.parse(payload); } catch { continue; }
+
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            reply += evt.delta.text;
+            paint();
+          } else if (evt.type === 'error') {
+            throw new Error(evt.error?.message || 'Terjadi error saat streaming');
+          }
+        }
+      }
+
+      bubble.classList.remove('cursor');
+      bubble.innerHTML = render(reply || '(Tidak ada balasan)');
+      if (reply) {
+        history.push({ role: 'assistant', content: reply });
+        addCopyButton(turn, () => reply);
+      } else {
+        history.pop();
+      }
+    } catch (err) {
+      bubble.classList.remove('cursor');
+      if (err.name === 'AbortError') {
+        // Berhenti manual: simpan bagian yang sudah tampil
+        bubble.innerHTML = render(reply || '(Dihentikan)');
+        if (reply) {
+          history.push({ role: 'assistant', content: reply });
+          addCopyButton(turn, () => reply);
+        } else {
+          history.pop();
+        }
+      } else {
+        turn.classList.add('error');
+        turn.removeChild(bubble);
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        b.textContent = 'Error: ' + err.message;
+        turn.appendChild(b);
+        history.pop();
+      }
+    } finally {
+      controller = null;
+      setBusy(false);
+      inputEl.focus();
+      scrollDown();
+    }
+  }
+
+  // ---------- Event ----------
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (busy) { controller?.abort(); return; }
+    const text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.value = '';
+    autoGrow();
+    send(text);
+  });
+
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  function autoGrow() {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
+  }
+  inputEl.addEventListener('input', autoGrow);
+
+  chatEl.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (chip && !busy) {
+      inputEl.value = chip.dataset.q;
+      form.requestSubmit();
+    }
+  });
+
+  keyEl.addEventListener('input', setStatus);
+
+  showIntro();
+  setStatus();
+})();
+</script>
+</body>
+</html>
